@@ -1,0 +1,9 @@
+streamlit
+streamlit-calendar
+supabase
+pytz
+pandas
+pygame
+yagmail
+bcrypt
+streamlit-autorefresh
