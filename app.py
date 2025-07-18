@@ -17,12 +17,23 @@ melbourne_tz = pytz.timezone("Australia/Melbourne")
 # ------------------ Set Page Config ------------------
 st.set_page_config(page_title="MelBooking - Booking", layout="centered")
 
-# ------------------ Get Store by ID or Name ------------------
+import uuid
+
+# ✅ ตรวจสอบว่าเป็น UUID จริงหรือไม่
+def is_valid_uuid(value):
+    try:
+        uuid.UUID(str(value))
+        return True
+    except ValueError:
+        return False
+
+# ✅ อ่านพารามิเตอร์จาก URL
 query_params = st.query_params
 store_id = query_params.get("store_id", [None])[0]
 store_name = query_params.get("store", [None])[0]
 
-if store_id:
+# ✅ ตรวจสอบและโหลดข้อมูลร้าน
+if store_id and is_valid_uuid(store_id):
     store_data = supabase.table("stores").select("id").eq("id", store_id).limit(1).execute()
 elif store_name:
     store_data = supabase.table("stores").select("id").ilike("name", store_name).limit(1).execute()
@@ -34,6 +45,7 @@ if not store_data.data:
     st.error("❌ ไม่พบร้านในระบบ กรุณาตรวจสอบลิงก์อีกครั้ง")
     st.stop()
 
+# ✅ ใช้ store_id ที่ได้จาก Supabase
 store_id = store_data.data[0]["id"]
 
 # ------------------ Email Function ------------------
