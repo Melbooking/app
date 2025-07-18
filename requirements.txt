@@ -6,4 +6,4 @@ pandas
 pygame
 yagmail
 bcrypt
-streamlit-autorefresh
+python-dotenv
