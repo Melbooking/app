@@ -1,27 +1,41 @@
 import streamlit as st
-from supabase import create_client, Client
+from supabase import create_client
 from datetime import datetime, timedelta, time
 import pytz
 import yagmail
+from dotenv import load_dotenv
+import os
 
-# ------------------ Supabase Config ------------------
-url = "https://tkdjgsubwywsbdgpkdfy.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrZGpnc3Vid3l3c2JkZ3BrZGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE2MzE2NzUsImV4cCI6MjA2NzIwNzY3NX0.RLfnGGd7caxLiQRKdQY9GF9lq3m4LkPU5NST3QZV3F0"
-supabase: Client = create_client(url, key)
-
-# ------------------ Email Config ------------------
-EMAIL = "ausnatee@gmail.com"
-APP_PASSWORD = "batb seve huwk pxng"
-
+# ------------------ Load .env ------------------
+load_dotenv(".env.app")
+url = os.getenv("SUPABASE_URL")
+key = os.getenv("SUPABASE_KEY")
+EMAIL = os.getenv("EMAIL_SENDER")
+APP_PASSWORD = os.getenv("EMAIL_APP_PASSWORD")
+supabase = create_client(url, key)
 melbourne_tz = pytz.timezone("Australia/Melbourne")
 
-# ------------------ ดึง store_id จาก URL ------------------
-query_params = st.query_params
-store_id = query_params.get("store_id", [None])[0]
+# ------------------ Set Page Config ------------------
+st.set_page_config(page_title="MelBooking - Booking", layout="centered")
 
-if not store_id:
-    st.error("❌ ไม่พบ store_id กรุณาเข้าผ่านลิงก์จากร้านเท่านั้น")
+# ------------------ Get Store ID by URL ------------------
+query_params = st.experimental_get_query_params()
+store_id = query_params.get("store_id", [None])[0]
+store_name = query_params.get("store", [None])[0]
+
+if store_id:
+    store_data = supabase.table("stores").select("id").eq("id", store_id).limit(1).execute()
+elif store_name:
+    store_data = supabase.table("stores").select("id").ilike("name", store_name).limit(1).execute()
+else:
+    st.error("❌ กรุณาเข้าผ่านลิงก์ที่มีชื่อร้าน หรือ store_id")
     st.stop()
+
+if not store_data.data:
+    st.error("❌ ไม่พบร้านในระบบ กรุณาตรวจสอบลิงก์อีกครั้ง")
+    st.stop()
+
+store_id = store_data.data[0]["id"]
 
 # ------------------ Email Function ------------------
 def send_confirmation_email(name, phone, email, massage_type, therapist, date, start, end, note, addon_names):
@@ -43,6 +57,7 @@ def send_confirmation_email(name, phone, email, massage_type, therapist, date, s
     yag = yagmail.SMTP(EMAIL, APP_PASSWORD)
     yag.send(to=email, subject="🧴 Massage Booking Confirmed", contents=body)
 
+# ------------------ Get Store Open/Close ------------------
 def get_store_hours():
     try:
         response = supabase.table("store_hours").select("Open, Close").eq("store_id", store_id).limit(1).execute()
@@ -55,14 +70,14 @@ def get_store_hours():
         pass
     return time(10, 0), time(20, 0)
 
+# ------------------ Booking Page ------------------
 def booking_page():
-    st.set_page_config(page_title="MelBooking - จองนวด", layout="centered")
     st.title("💆 MelBooking")
 
     therapists = [t["Name"] for t in supabase.table("therapists").select("*").eq("store_id", store_id).execute().data]
     massage_types_data = supabase.table("massage_types").select("*").eq("store_id", store_id).execute().data
     main_massage_types = [m for m in massage_types_data if not m.get("is_addon", False)]
-    addon_types = [a for a in massage_types_data if a.get("is_addon", False)]
+    addon_types = [a for a in massage_types_data if m.get("is_addon", False)]
 
     today = datetime.now(melbourne_tz).date()
 
@@ -133,6 +148,5 @@ def booking_page():
             send_confirmation_email(name, phone, email, massage_type, therapist, date, start_dt, end_dt, note, addon_names)
             st.success(f"🎉 Booking confirmed on {date.strftime('%d/%m/%Y')} at {selected_time_str} with {therapist}")
 
-# ------------------ RUN ------------------
-if __name__ == "__main__":
-    booking_page()
+# ------------------ Run ------------------
+booking_page()
