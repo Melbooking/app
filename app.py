@@ -6,20 +6,19 @@ import yagmail
 from dotenv import load_dotenv
 import os
 
-# ------------------ Load .env ------------------
-load_dotenv(".env.app")
-url = os.getenv("SUPABASE_URL")
-key = os.getenv("SUPABASE_KEY")
-EMAIL = os.getenv("EMAIL_SENDER")
-APP_PASSWORD = os.getenv("EMAIL_APP_PASSWORD")
+# ------------------ Load Secrets ------------------
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
+EMAIL = st.secrets["EMAIL_SENDER"]
+APP_PASSWORD = st.secrets["EMAIL_APP_PASSWORD"]
 supabase = create_client(url, key)
 melbourne_tz = pytz.timezone("Australia/Melbourne")
 
 # ------------------ Set Page Config ------------------
 st.set_page_config(page_title="MelBooking - Booking", layout="centered")
 
-# ------------------ Get Store ID by URL ------------------
-query_params = st.experimental_get_query_params()
+# ------------------ Get Store by ID or Name ------------------
+query_params = st.query_params
 store_id = query_params.get("store_id", [None])[0]
 store_name = query_params.get("store", [None])[0]
 
@@ -54,7 +53,7 @@ def send_confirmation_email(name, phone, email, massage_type, therapist, date, s
 
     We'll see you soon! ❤️
     """
-    yag = yagmail.SMTP(EMAIL, APP_PASSWORD)
+    yag = yagmail.SMTP(EMAIL, EMAIL_APP_PASSWORD)
     yag.send(to=email, subject="🧴 Massage Booking Confirmed", contents=body)
 
 # ------------------ Get Store Open/Close ------------------
