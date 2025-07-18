@@ -1,13 +1,16 @@
-# Python
+# Python cache
 __pycache__/
 *.py[cod]
 *.log
 
-# Env
-.env
+# Env files (secure keys)
+.env.*
+.env.app
+.env.admin
+.env.superadmin
 
-# VSCode
+# VSCode project settings
 .vscode/
 
-# Mac
+# macOS system file
 .DS_Store
