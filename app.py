@@ -136,15 +136,14 @@ def booking_page():
         selected_time_str = st.selectbox("🕒 Available Time", available_times, key="selected_time") if available_times else None
         confirm = st.form_submit_button("✅ Confirm Booking")
 
-        if confirm and st.session_state.get("selected_time"):
-            selected_str = st.session_state["selected_time"]
-            selected_dt = time_map.get(selected_str)
+        if confirm and selected_time_str:
+            selected_dt = time_map.get(selected_time_str)
             if not selected_dt:
                 st.error("❌ Invalid time selected.")
                 return
 
             if not email.strip():
-                st.error("📧 Please enter a valid email address.")
+                st.error("📧 Please enter your email address.")
                 return
             if not phone.strip():
                 st.error("📞 Please enter your phone number.")
@@ -168,7 +167,7 @@ def booking_page():
             }).execute()
 
             send_confirmation_email(name, phone, email, massage_type, therapist, date, selected_dt, end_dt, note, addon_names)
-            st.success(f"🎉 Booking confirmed on {date.strftime('%d/%m/%Y')} at {selected_str} with {therapist}")
+            st.success(f"🎉 Booking confirmed on {date.strftime('%d/%m/%Y')} at {selected_time_str} with {therapist}")
 
 # ------------------ Run ------------------
 booking_page()
