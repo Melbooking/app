@@ -3,7 +3,6 @@ from supabase import create_client
 from datetime import datetime, timedelta, time
 import pytz
 import yagmail
-import os
 import uuid
 
 # ------------------ Load Secrets ------------------
@@ -30,7 +29,6 @@ query_params = st.query_params
 store_id = query_params.get("store_id")
 store_slug = query_params.get("store_slug") or query_params.get("store")
 
-# ✅ ตรวจสอบและโหลดข้อมูลร้าน
 if store_id and is_valid_uuid(store_id):
     response = supabase.table("stores").select("id").eq("id", store_id).limit(1).execute()
 elif store_slug:
@@ -87,7 +85,6 @@ def get_store_hours():
 def booking_page():
     st.title("💆 MelBooking")
 
-    # ดึงข้อมูลจาก Supabase
     therapists_data = supabase.table("therapists").select("*").eq("store_id", store_id).execute().data or []
     massage_types_data = supabase.table("massage_types").select("*").eq("store_id", store_id).execute().data or []
     main_massage_types = [m for m in massage_types_data if not m.get("is_addon", False)]
@@ -109,7 +106,7 @@ def booking_page():
         email = st.text_input("📧 Email Address")
 
         display_list = [f"{m['Type']} (${m['Price-hour']}/hr)" for m in main_massage_types]
-        selected_index = st.selectbox("💆 Massage Type", range(len(display_list)), format_func=lambda i: display_list[i] if i < len(display_list) else "N/A")
+        selected_index = st.selectbox("💆 Massage Type", range(len(display_list)), format_func=lambda i: display_list[i])
         massage_type = main_massage_types[selected_index]["Type"]
         base_price = float(main_massage_types[selected_index]["Price-hour"])
 
@@ -121,7 +118,6 @@ def booking_page():
         duration_text = st.selectbox("⏱ Duration", ["30 mins", "45 mins", "1 hour", "1.5 hours", "2 hours"])
         durations = {"30 mins": 30, "45 mins": 45, "1 hour": 60, "1.5 hours": 90, "2 hours": 120}
         duration = durations[duration_text]
-
         note = st.text_area("✏️ Special Request (optional)")
 
         store_open, store_close = get_store_hours()
@@ -137,20 +133,21 @@ def booking_page():
             time_map[display] = slot_time
             slot_time += timedelta(minutes=15)
 
-        selected_time_str = st.selectbox("🕒 Available Time", available_times) if available_times else None
+        selected_time_str = st.selectbox("🕒 Available Time", available_times, key="selected_time") if available_times else None
         confirm = st.form_submit_button("✅ Confirm Booking")
 
-        if confirm and selected_time_str:
+        if confirm and st.session_state.get("selected_time"):
+            selected_str = st.session_state["selected_time"]
+            selected_dt = time_map.get(selected_str)
+            if not selected_dt:
+                st.error("❌ Invalid time selected.")
+                return
+
             if not email.strip():
                 st.error("📧 Please enter a valid email address.")
                 return
             if not phone.strip():
                 st.error("📞 Please enter your phone number.")
-                return
-
-            selected_dt = time_map.get(selected_time_str)
-            if not selected_dt:
-                st.error("❌ Invalid time selected.")
                 return
 
             end_dt = selected_dt + timedelta(minutes=duration)
@@ -171,7 +168,7 @@ def booking_page():
             }).execute()
 
             send_confirmation_email(name, phone, email, massage_type, therapist, date, selected_dt, end_dt, note, addon_names)
-            st.success(f"🎉 Booking confirmed on {date.strftime('%d/%m/%Y')} at {selected_time_str} with {therapist}")
+            st.success(f"🎉 Booking confirmed on {date.strftime('%d/%m/%Y')} at {selected_str} with {therapist}")
 
 # ------------------ Run ------------------
 booking_page()
