@@ -26,18 +26,17 @@ def is_valid_uuid(value):
     except ValueError:
         return False
 
-# ✅ อ่านพารามิเตอร์จาก URL
 query_params = st.query_params
 store_id = query_params.get("store_id", [None])[0]
-store_name = query_params.get("store", [None])[0]
+store_slug = query_params.get("store_slug", [None])[0]
 
 # ✅ ตรวจสอบและโหลดข้อมูลร้าน
 if store_id and is_valid_uuid(store_id):
     store_data = supabase.table("stores").select("id").eq("id", store_id).limit(1).execute()
-elif store_name:
-    store_data = supabase.table("stores").select("id").ilike("store_name", store_name).limit(1).execute()
+elif store_slug:
+    store_data = supabase.table("stores").select("id").eq("store_slug", store_slug).limit(1).execute()
 else:
-    st.error("❌ กรุณาเข้าผ่านลิงก์ที่มีชื่อร้าน หรือ store_id")
+    st.error("❌ กรุณาเข้าผ่านลิงก์ที่มี store_id หรือ store_slug")
     st.stop()
 
 if not store_data.data:
