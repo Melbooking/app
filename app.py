@@ -27,8 +27,8 @@ def is_valid_uuid(value):
         return False
 
 query_params = st.query_params
-store_id = query_params.get("store_id", [None])[0]
-store_slug = query_params.get("store_slug", [None])[0]
+store_id = (query_params.get("store_id") or [None])[0]
+store_slug = (query_params.get("store_slug") or [None])[0]
 
 # ✅ ตรวจสอบและโหลดข้อมูลร้าน
 if store_id and is_valid_uuid(store_id):
