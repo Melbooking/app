@@ -115,8 +115,8 @@ st_autorefresh(interval=20 * 1000, key="refresh")
 
 # ---------- PLAY SOUND ----------
 def play_notification():
-    audio_url = "https://raw.githubusercontent.com/Melbooking/sound/main/new_booking.mp3"
-    st.audio(audio_url, format="audio/mp3", start_time=0)
+    audio_url = "https://cdn.jsdelivr.net/gh/Melbooking/sound@main/new_booking.mp3"
+    st.audio(audio_url, format="audio/mp3")
 
 # ---------- DETECT NEW BOOKING BY ROW (WITH store_id) ----------
 def play_notification_on_new_booking():
