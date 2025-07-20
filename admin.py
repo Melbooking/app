@@ -107,47 +107,6 @@ def check_login():
     login_duration = (datetime.now() - st.session_state['login_time']).seconds
     return login_duration < 43200  # 12 hours
 
-
-
-# ---------- AUTO REFRESH ----------
-st_autorefresh(interval=20 * 1000, key="refresh")
-
-
-# ---------- PLAY SOUND ----------
-def play_notification():
-    audio_url = "https://cdn.jsdelivr.net/gh/Melbooking/sound@main/new_booking.mp3"
-    st.audio(audio_url, format="audio/mp3")
-
-# ---------- DETECT NEW BOOKING BY ROW (WITH store_id) ----------
-def play_notification():
-    audio_url = "https://cdn.jsdelivr.net/gh/Melbooking/sound@main/new_booking.mp3"
-    st.components.v1.html(f"""
-    <script>
-        var audio = new Audio("{audio_url}");
-        audio.play();
-    </script>
-    """, height=0)
-
-    # โหลด bookings เฉพาะร้าน
-    response = supabase.table("bookings").select("id").eq("store_id", store_id).execute()
-    current_ids = set([row["id"] for row in response.data]) if response.data else set()
-    current_count = len(current_ids)
-
-    # ถ้ายังไม่มี session state ก็สร้างใหม่
-    if "previous_booking_count" not in st.session_state:
-        st.session_state.previous_booking_count = current_count
-        return
-
-    # ตรวจจับการเพิ่ม row
-    if current_count > st.session_state.previous_booking_count:
-        play_notification()
-
-    # อัปเดต count ล่าสุด
-    st.session_state.previous_booking_count = current_count
-
-
-
-
 def convert_bookings_to_events(data):
     events = []
     melbourne_tz = pytz.timezone("Australia/Melbourne")
@@ -898,11 +857,49 @@ def view_archived_bookings():
     except Exception as e:
         st.error(f"❌ Failed to load archived bookings: {e}")
 
+# ---------- PLAY SOUND (use JS for autoplay) ----------
+def play_notification():
+    audio_url = "https://cdn.jsdelivr.net/gh/Melbooking/sound@main/new_booking.mp3"
+    st.components.v1.html(f"""
+    <script>
+        var audio = new Audio("{audio_url}");
+        audio.play();
+    </script>
+    """, height=0)
+
+# ---------- DETECT NEW BOOKING BY ROW (WITH store_id) ----------
+def play_notification_on_new_booking():
+    store_id = st.session_state.get("store_id")
+    if not store_id:
+        return
+
+    # โหลด bookings เฉพาะร้าน
+    response = supabase.table("bookings").select("id").eq("store_id", store_id).execute()
+    current_ids = set([row["id"] for row in response.data]) if response.data else set()
+    current_count = len(current_ids)
+
+    # ถ้ายังไม่มี session state ก็สร้างใหม่
+    if "previous_booking_count" not in st.session_state:
+        st.session_state.previous_booking_count = current_count
+        return
+
+    # ตรวจจับการเพิ่ม row
+    if current_count > st.session_state.previous_booking_count:
+        play_notification()
+
+    # อัปเดต count ล่าสุด
+    st.session_state.previous_booking_count = current_count
 
 def main():
     if not check_login():
         login()
         return
+
+    # ✅ รีเฟรชทุก 20 วินาที
+    st_autorefresh(interval=20 * 1000, key="refresh")
+
+    # ✅ ตรวจจับ booking ใหม่และเล่นเสียง
+    play_notification_on_new_booking()
 
 
     st.sidebar.title("🛠 Admin Menu")
