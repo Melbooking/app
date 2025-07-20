@@ -104,7 +104,7 @@ def booking_page():
     therapists = [t["Name"] for t in therapists_data]
     today = datetime.now(melbourne_tz).date()
 
-    with st.form("booking_form", clear_on_submit=True):
+    with st.form("booking_form", clear_on_submit=False):
         name = st.text_input("👤 Full Name")
         phone = st.text_input("📞 Phone Number")
         email = st.text_input("📧 Email Address")
