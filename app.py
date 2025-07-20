@@ -109,13 +109,13 @@ def booking_page():
         phone = st.text_input("📞 Phone Number")
         email = st.text_input("📧 Email Address")
 
-        display_list = [f"{m['Type']} (${m['Price/hour']}/hr)" for m in main_massage_types]
+        display_list = [f"{m['Type']} (${m['Price-hour']}/hr)" for m in main_massage_types]
         selected_index = st.selectbox("💆 Massage Type", range(len(display_list)), format_func=lambda i: display_list[i] if i < len(display_list) else "N/A")
         massage_type = main_massage_types[selected_index]["Type"]
-        base_price = float(main_massage_types[selected_index]["Price/hour"])
+        base_price = float(main_massage_types[selected_index]["Price-hour"])
 
         selected_addons = st.multiselect("➕ Add-ons (optional)", options=addon_types,
-                                         format_func=lambda a: f"{a['Type']} (+${a['Price/hour']})") if addon_types else []
+                                         format_func=lambda a: f"{a['Type']} (+${a['Price-hour']})") if addon_types else []
 
         therapist = st.selectbox("🧑‍⚕️ Therapist", therapists)
         date = st.date_input("📅 Select Date", min_value=today)
@@ -152,7 +152,7 @@ def booking_page():
             start_dt = time_map[selected_time_str]
             end_dt = start_dt + timedelta(minutes=duration)
 
-            addon_price = sum(float(a["Price/hour"]) for a in selected_addons)
+            addon_price = sum(float(a["Price-hour"]) for a in selected_addons)
             addon_names = ", ".join(a["Type"] for a in selected_addons)
 
             supabase.table("bookings").insert({
