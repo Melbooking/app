@@ -149,18 +149,16 @@ def calendar_view():
         st.error("❌ Store ID not found.")
         return
 
-    # 🔹 Load therapists for store
+    # Load Therapists
     therapist_response = supabase.table("therapists").select("*").eq("store_id", store_id).execute()
     therapists = therapist_response.data or []
 
-    # 🔹 Prepare resources and colors
-    color_palette = [
-        "#f44336", "#3f51b5", "#009688", "#ff9800",
-        "#9c27b0", "#03a9f4", "#4caf50", "#e91e63",
-        "#607d8b", "#cddc39", "#795548", "#00bcd4"
-    ]
+    # Therapist → Resource
+    color_palette = ["#f44336", "#3f51b5", "#009688", "#ff9800", "#9c27b0", "#03a9f4",
+                     "#4caf50", "#e91e63", "#607d8b", "#cddc39", "#795548", "#00bcd4"]
     resources = []
     therapist_colors = {}
+
     for i, t in enumerate(therapists):
         name = t["Name"]
         resource_id = f"t_{i}"
@@ -168,10 +166,9 @@ def calendar_view():
         therapist_colors[name] = {"id": resource_id, "color": color}
         resources.append({"id": resource_id, "title": name})
 
-    # 🔹 Load bookings for store
+    # Load Bookings
     bookings_response = supabase.table("bookings").select("*").eq("store_id", store_id).execute()
     bookings = bookings_response.data or []
-
     events = []
     id_mapping = {}
     mel_tz = pytz.timezone("Australia/Melbourne")
@@ -183,10 +180,9 @@ def calendar_view():
             end = datetime.strptime(row["end_time"], "%I:%M %p").time()
             start_iso = mel_tz.localize(datetime.combine(date, start)).isoformat()
             end_iso = mel_tz.localize(datetime.combine(date, end)).isoformat()
-
             therapist = row.get("Therapist", "")
-            therapist_info = therapist_colors.get(therapist)
-            if not therapist_info:
+            info = therapist_colors.get(therapist)
+            if not info:
                 continue
 
             event = {
@@ -194,15 +190,16 @@ def calendar_view():
                 "title": f"{row.get('customer_name', '')} - {row.get('Type', '')}",
                 "start": start_iso,
                 "end": end_iso,
-                "resourceId": therapist_info["id"],
-                "backgroundColor": therapist_info["color"],
-                "borderColor": therapist_info["color"]
+                "resourceId": info["id"],
+                "backgroundColor": info["color"],
+                "borderColor": info["color"]
             }
             id_mapping[row["id"]] = row
             events.append(event)
         except Exception as e:
             print("❌ Error parsing booking:", e)
 
+    # FullCalendar options
     calendar_options = {
         "schedulerLicenseKey": "GPL-My-Project-Is-Open-Source",
         "initialView": "resourceTimeGridDay",
@@ -216,69 +213,55 @@ def calendar_view():
         "slotMaxTime": "22:00:00",
         "allDaySlot": False,
         "timeZone": "Australia/Melbourne",
-        "headerToolbar": {
-            "left": "prev,next today",
-            "center": "title",
-            "right": ""
-        },
-        "eventTimeFormat": {
-            "hour": "numeric",
-            "minute": "2-digit",
-            "hour12": True
-        }
+        "headerToolbar": {"left": "prev,next today", "center": "title", "right": ""},
+        "eventTimeFormat": {"hour": "numeric", "minute": "2-digit", "hour12": True}
     }
 
+    # Calendar rendering
     result = calendar(events=events, options=calendar_options, key="calendar-fresha")
 
-    # เก็บ pending update ใน session
-    if result and isinstance(result, dict) and result.get("event"):
-        event = result["event"]
-        st.session_state["pending_update"] = {
-            "id": event["id"],
-            "start": event["start"],
-            "end": event["end"],
-            "resourceId": event.get("resourceId")
-        }
-        st.info("⚠️ Booking updated in calendar. Click 'Confirm Update' to save.")
+    # Store pending update if drag occurred
+    if result and isinstance(result, dict) and result.get("event") and result.get("updated"):
+        st.session_state["pending_update"] = result["event"]
 
-    # ปุ่มกดยืนยัน update
-    if st.button("💾 Confirm Update"):
-        update_data = st.session_state.get("pending_update")
-        if not update_data:
+    # Always show Confirm button
+    st.markdown("### 🔧 Confirm Update")
+    if st.button("💾 Confirm Changes"):
+        event = st.session_state.get("pending_update")
+        if not event:
             st.warning("⚠️ No changes to confirm yet.")
-            return
-
-        event_id = update_data["id"]
-        new_start = datetime.fromisoformat(update_data["start"])
-        new_end = datetime.fromisoformat(update_data["end"])
-        new_resource_id = update_data.get("resourceId")
-
-        new_therapist = None
-        for name, info in therapist_colors.items():
-            if info["id"] == new_resource_id:
-                new_therapist = name
-                break
-
-        if not new_therapist:
-            st.error("❌ Therapist not found for updated event.")
-            return
-
-        date_str = new_start.strftime("%d/%m/%Y")
-        start_str = new_start.strftime("%I:%M %p")
-        end_str = new_end.strftime("%I:%M %p")
-
-        update_response = supabase.table("bookings").update({
-            "Date": date_str,
-            "start_time": start_str,
-            "end_time": end_str,
-            "Therapist": new_therapist
-        }).eq("id", event_id).eq("store_id", store_id).execute()
-
-        if update_response.status_code == 200:
-            st.success("✅ Booking updated in Supabase.")
-            del st.session_state["pending_update"]
         else:
-            st.error("❌ Failed to update booking. Please try again.")
+            try:
+                new_start = datetime.fromisoformat(event["start"])
+                new_end = datetime.fromisoformat(event["end"])
+                new_resource_id = event.get("resourceId")
+                new_therapist = None
+
+                for name, info in therapist_colors.items():
+                    if info["id"] == new_resource_id:
+                        new_therapist = name
+                        break
+
+                if not new_therapist:
+                    st.error("❌ Therapist not found from resource ID.")
+                    return
+
+                # Update Supabase
+                update_response = supabase.table("bookings").update({
+                    "Date": new_start.strftime("%d/%m/%Y"),
+                    "start_time": new_start.strftime("%I:%M %p"),
+                    "end_time": new_end.strftime("%I:%M %p"),
+                    "Therapist": new_therapist
+                }).eq("id", event["id"]).eq("store_id", store_id).execute()
+
+                if update_response.status_code == 200:
+                    st.success(f"✅ Booking updated to {new_start.strftime('%I:%M %p')} with {new_therapist}")
+                    del st.session_state["pending_update"]  # clear after success
+                else:
+                    st.error("❌ Failed to update booking.")
+            except Exception as e:
+                st.error(f"❌ Error during update: {e}")
+
 
 # ---------- WEEKLY SUMMARY ----------
 def weekly_summary():
