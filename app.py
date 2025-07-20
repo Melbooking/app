@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, time
 import pytz
 import yagmail
 import os
+import uuid
 
 # ------------------ Load Secrets ------------------
 url = st.secrets["SUPABASE_URL"]
@@ -16,8 +17,6 @@ melbourne_tz = pytz.timezone("Australia/Melbourne")
 # ------------------ Set Page Config ------------------
 st.set_page_config(page_title="MelBooking - Booking", layout="centered")
 
-import uuid
-
 # ✅ ตรวจสอบว่าเป็น UUID จริงหรือไม่
 def is_valid_uuid(value):
     try:
@@ -26,10 +25,10 @@ def is_valid_uuid(value):
     except ValueError:
         return False
 
+# ------------------ รับ store_id หรือ store_slug จาก URL ------------------
 query_params = st.query_params
 store_id = query_params.get("store_id")
 store_slug = query_params.get("store_slug") or query_params.get("store")
-
 
 # ✅ ตรวจสอบและโหลดข้อมูลร้าน
 if store_id and is_valid_uuid(store_id):
@@ -40,7 +39,6 @@ else:
     st.error("❌ Please access the page using a valid link with store_id or store_slug.")
     st.stop()
 
-# ✅ ตรวจสอบว่า response มีข้อมูลจริง
 if not response or not response.data or not isinstance(response.data, list) or len(response.data) == 0:
     st.error("❌ Store not found. Please check the link again.")
     st.stop()
@@ -89,11 +87,21 @@ def get_store_hours():
 def booking_page():
     st.title("💆 MelBooking")
 
-    therapists = [t["Name"] for t in supabase.table("therapists").select("*").eq("store_id", store_id).execute().data]
-    massage_types_data = supabase.table("massage_types").select("*").eq("store_id", store_id).execute().data
+    # ดึงข้อมูลจาก Supabase
+    therapists_data = supabase.table("therapists").select("*").eq("store_id", store_id).execute().data or []
+    massage_types_data = supabase.table("massage_types").select("*").eq("store_id", store_id).execute().data or []
     main_massage_types = [m for m in massage_types_data if not m.get("is_addon", False)]
     addon_types = [a for a in massage_types_data if a.get("is_addon", False)]
 
+    # ถ้าไม่มีข้อมูล therapist หรือ massage type ให้แจ้งเตือน
+    if not therapists_data:
+        st.warning("⚠️ ยังไม่มีรายชื่อ Therapist กรุณาเพิ่มในระบบแอดมินก่อน")
+        return
+    if not main_massage_types:
+        st.warning("⚠️ ยังไม่มีประเภทการนวด กรุณาเพิ่มในระบบแอดมินก่อน")
+        return
+
+    therapists = [t["Name"] for t in therapists_data]
     today = datetime.now(melbourne_tz).date()
 
     with st.form("booking_form", clear_on_submit=True):
@@ -102,12 +110,12 @@ def booking_page():
         email = st.text_input("📧 Email Address")
 
         display_list = [f"{m['Type']} (${m['Price/hour']}/hr)" for m in main_massage_types]
-        selected_index = st.selectbox("💆 Massage Type", range(len(display_list)), format_func=lambda i: display_list[i])
+        selected_index = st.selectbox("💆 Massage Type", range(len(display_list)), format_func=lambda i: display_list[i] if i < len(display_list) else "N/A")
         massage_type = main_massage_types[selected_index]["Type"]
         base_price = float(main_massage_types[selected_index]["Price/hour"])
 
         selected_addons = st.multiselect("➕ Add-ons (optional)", options=addon_types,
-                                         format_func=lambda a: f"{a['Type']} (+${a['Price/hour']})")
+                                         format_func=lambda a: f"{a['Type']} (+${a['Price/hour']})") if addon_types else []
 
         therapist = st.selectbox("🧑‍⚕️ Therapist", therapists)
         date = st.date_input("📅 Select Date", min_value=today)
