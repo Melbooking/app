@@ -44,9 +44,11 @@ def dashboard():
     for s in stores:
         slug = s.get("store_slug", "")
         store_url = f"https://melbooking.streamlit.app/?store_name={slug}"
-        st.markdown(f"- **{s['store_name']}**  
+        st.markdown(f"""
+        **{s['store_name']}**  
         🔗 [เปิดลิงก์ร้าน]({store_url})  
-        🆔 ID: `{s['id']}`", unsafe_allow_html=True)
+        🆔 ID: `{s['id']}`
+        """, unsafe_allow_html=True)
 
     # ---- Booking ทุกร้าน
     bookings = supabase.table("bookings").select("*").execute().data
