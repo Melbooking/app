@@ -32,19 +32,24 @@ store_slug = (query_params.get("store_slug") or [None])[0]
 
 # ✅ ตรวจสอบและโหลดข้อมูลร้าน
 if store_id and is_valid_uuid(store_id):
-    store_data = supabase.table("stores").select("id").eq("id", store_id).limit(1).execute()
+    response = supabase.table("stores").select("id").eq("id", store_id).limit(1).execute()
 elif store_slug:
-    store_data = supabase.table("stores").select("id").eq("store_slug", store_slug).limit(1).execute()
+    response = supabase.table("stores").select("id").eq("store_slug", store_slug).limit(1).execute()
 else:
-    st.error("❌ กรุณาเข้าผ่านลิงก์ที่มี store_id หรือ store_slug")
+    st.error("❌ Please access the page using a valid link with store_id or store_slug.")
     st.stop()
 
-if not store_data.data:
-    st.error("❌ ไม่พบร้านในระบบ กรุณาตรวจสอบลิงก์อีกครั้ง")
+# ✅ ตรวจสอบว่า response มีข้อมูลจริง
+if not response or not response.data or not isinstance(response.data, list) or len(response.data) == 0:
+    st.error("❌ Store not found. Please check the link again.")
     st.stop()
 
-# ✅ ใช้ store_id ที่ได้จาก Supabase
-store_id = store_data.data[0]["id"]
+first_row = response.data[0]
+store_id = first_row.get("id")
+
+if not store_id:
+    st.error("❌ Invalid store ID. Please verify your store data in Supabase.")
+    st.stop()
 
 # ------------------ Email Function ------------------
 def send_confirmation_email(name, phone, email, massage_type, therapist, date, start, end, note, addon_names):
