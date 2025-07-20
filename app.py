@@ -133,7 +133,14 @@ def booking_page():
             time_map[display] = slot_time
             slot_time += timedelta(minutes=15)
 
-        selected_time_str = st.selectbox("🕒 Available Time", available_times, key="selected_time") if available_times else None
+        selected_time_str = st.selectbox(
+            "🕒 Available Time",
+            options=available_times,
+            index=None,
+            placeholder="Select available time",
+            key="selected_time"
+        ) if available_times else None
+
         confirm = st.form_submit_button("✅ Confirm Booking")
 
         if confirm and selected_time_str:
@@ -168,6 +175,8 @@ def booking_page():
 
             send_confirmation_email(name, phone, email, massage_type, therapist, date, selected_dt, end_dt, note, addon_names)
             st.success(f"🎉 Booking confirmed on {date.strftime('%d/%m/%Y')} at {selected_time_str} with {therapist}")
+        elif confirm and not selected_time_str:
+            st.error("❗ Please select a time before confirming.")
 
 # ------------------ Run ------------------
 booking_page()
