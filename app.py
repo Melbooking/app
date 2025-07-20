@@ -93,7 +93,6 @@ def booking_page():
     main_massage_types = [m for m in massage_types_data if not m.get("is_addon", False)]
     addon_types = [a for a in massage_types_data if a.get("is_addon", False)]
 
-    # ถ้าไม่มีข้อมูล therapist หรือ massage type ให้แจ้งเตือน
     if not therapists_data:
         st.warning("⚠️ ยังไม่มีรายชื่อ Therapist กรุณาเพิ่มในระบบแอดมินก่อน")
         return
@@ -126,17 +125,17 @@ def booking_page():
         note = st.text_area("✏️ Special Request (optional)")
 
         store_open, store_close = get_store_hours()
-        start_dt = melbourne_tz.localize(datetime.combine(date, store_open))
+        slot_time = melbourne_tz.localize(datetime.combine(date, store_open))
         end_limit = melbourne_tz.localize(datetime.combine(date, store_close)) - timedelta(minutes=duration)
 
         available_times = []
         time_map = {}
 
-        while start_dt <= end_limit:
-            display = start_dt.strftime("%I:%M %p")
+        while slot_time <= end_limit:
+            display = slot_time.strftime("%I:%M %p")
             available_times.append(display)
-            time_map[display] = start_dt
-            start_dt += timedelta(minutes=15)
+            time_map[display] = slot_time
+            slot_time += timedelta(minutes=15)
 
         selected_time_str = st.selectbox("🕒 Available Time", available_times) if available_times else None
         confirm = st.form_submit_button("✅ Confirm Booking")
@@ -149,16 +148,19 @@ def booking_page():
                 st.error("📞 Please enter your phone number.")
                 return
 
-            start_dt = time_map[selected_time_str]
-            end_dt = start_dt + timedelta(minutes=duration)
+            selected_dt = time_map.get(selected_time_str)
+            if not selected_dt:
+                st.error("❌ Invalid time selected.")
+                return
 
+            end_dt = selected_dt + timedelta(minutes=duration)
             addon_price = sum(float(a["Price-hour"]) for a in selected_addons)
             addon_names = ", ".join(a["Type"] for a in selected_addons)
 
             supabase.table("bookings").insert({
                 "store_id": store_id,
-                "Date": start_dt.strftime("%d/%m/%Y"),
-                "start_time": start_dt.strftime("%I:%M %p"),
+                "Date": selected_dt.strftime("%d/%m/%Y"),
+                "start_time": selected_dt.strftime("%I:%M %p"),
                 "end_time": end_dt.strftime("%I:%M %p"),
                 "customer_name": name,
                 "Therapist": therapist,
@@ -168,7 +170,7 @@ def booking_page():
                 "Add-on Price": addon_price
             }).execute()
 
-            send_confirmation_email(name, phone, email, massage_type, therapist, date, start_dt, end_dt, note, addon_names)
+            send_confirmation_email(name, phone, email, massage_type, therapist, date, selected_dt, end_dt, note, addon_names)
             st.success(f"🎉 Booking confirmed on {date.strftime('%d/%m/%Y')} at {selected_time_str} with {therapist}")
 
 # ------------------ Run ------------------
