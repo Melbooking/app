@@ -16,7 +16,6 @@ melbourne_tz = pytz.timezone("Australia/Melbourne")
 # ------------------ Set Page Config ------------------
 st.set_page_config(page_title="MelBooking - Booking", layout="centered")
 
-# ✅ ตรวจสอบว่าเป็น UUID จริงหรือไม่
 def is_valid_uuid(value):
     try:
         uuid.UUID(str(value))
@@ -49,24 +48,24 @@ if not store_id:
     st.stop()
 
 # ------------------ Email Function ------------------
-def send_confirmation_email(name, phone, email, massage_type, therapist, date, start, end, note, addon_names):
+def send_confirmation_email(name, phone, email, service_type, provider, date, start, end, note, addon_names):
     body = f"""
-    🙏 Thank you for booking with MelBooking!
+🙏 Thank you for booking with MelBooking!
 
-    👤 Name: {name}
-    📞 Phone: {phone}
-    📧 Email: {email}
-    💆 Massage: {massage_type}
-    🧴 Add-ons: {addon_names if addon_names else 'None'}
-    🦶 Therapist: {therapist}
-    🗓 Date: {date.strftime('%A, %d %B %Y')}
-    ⏰ Time: {start.strftime('%I:%M %p')} - {end.strftime('%I:%M %p')}
-    ✏️ Note: {note if note else 'None'}
+👤 Name: {name}
+📞 Phone: {phone}
+📧 Email: {email}
+🛎️ Service: {service_type}
+➕ Extras: {addon_names if addon_names else 'None'}
+👤 Provider: {provider}
+📅 Date: {date.strftime('%A, %d %B %Y')}
+⏰ Time: {start.strftime('%I:%M %p')} - {end.strftime('%I:%M %p')}
+✏️ Note: {note if note else 'None'}
 
-    We'll see you soon! ❤️
-    """
+We look forward to seeing you! ❤️
+"""
     yag = yagmail.SMTP(EMAIL, EMAIL_APP_PASSWORD)
-    yag.send(to=email, subject="🧴 Massage Booking Confirmed", contents=body)
+    yag.send(to=email, subject="🛎️ Service Booking Confirmed", contents=body)
 
 # ------------------ Get Store Open/Close ------------------
 def get_store_hours():
@@ -83,21 +82,21 @@ def get_store_hours():
 
 # ------------------ Booking Page ------------------
 def booking_page():
-    st.title("💆 MelBooking")
+    st.title("📅 MelBooking: Book Your Service")
 
     therapists_data = supabase.table("therapists").select("*").eq("store_id", store_id).execute().data or []
-    massage_types_data = supabase.table("massage_types").select("*").eq("store_id", store_id).execute().data or []
-    main_massage_types = [m for m in massage_types_data if not m.get("is_addon", False)]
-    addon_types = [a for a in massage_types_data if a.get("is_addon", False)]
+    service_types_data = supabase.table("massage_types").select("*").eq("store_id", store_id).execute().data or []
+    main_service_types = [m for m in service_types_data if not m.get("is_addon", False)]
+    addon_types = [a for a in service_types_data if a.get("is_addon", False)]
 
     if not therapists_data:
-        st.warning("⚠️ ยังไม่มีรายชื่อ Therapist กรุณาเพิ่มในระบบแอดมินก่อน")
+        st.warning("⚠️ No service providers available. Please add them in admin panel.")
         return
-    if not main_massage_types:
-        st.warning("⚠️ ยังไม่มีประเภทการนวด กรุณาเพิ่มในระบบแอดมินก่อน")
+    if not main_service_types:
+        st.warning("⚠️ No service types found. Please add them in admin panel.")
         return
 
-    therapists = [t["Name"] for t in therapists_data]
+    providers = [t["Name"] for t in therapists_data]
     today = datetime.now(melbourne_tz).date()
 
     with st.form("booking_form", clear_on_submit=False):
@@ -105,20 +104,20 @@ def booking_page():
         phone = st.text_input("📞 Phone Number")
         email = st.text_input("📧 Email Address")
 
-        display_list = [f"{m['Type']} (${m['Price-hour']}/hr)" for m in main_massage_types]
-        selected_index = st.selectbox("💆 Massage Type", range(len(display_list)), format_func=lambda i: display_list[i])
-        massage_type = main_massage_types[selected_index]["Type"]
-        base_price = float(main_massage_types[selected_index]["Price-hour"])
+        display_list = [f"{m['Type']} (${m['Price-hour']}/hr)" for m in main_service_types]
+        selected_index = st.selectbox("🛎️ Service Type", range(len(display_list)), format_func=lambda i: display_list[i])
+        service_type = main_service_types[selected_index]["Type"]
+        base_price = float(main_service_types[selected_index]["Price-hour"])
 
-        selected_addons = st.multiselect("➕ Add-ons (optional)", options=addon_types,
+        selected_addons = st.multiselect("➕ Extras (optional)", options=addon_types,
                                          format_func=lambda a: f"{a['Type']} (+${a['Price-hour']})") if addon_types else []
 
-        therapist = st.selectbox("🧑‍⚕️ Therapist", therapists)
+        provider = st.selectbox("👤 Service Provider", providers)
         date = st.date_input("📅 Select Date", min_value=today)
         duration_text = st.selectbox("⏱ Duration", ["30 mins", "45 mins", "1 hour", "1.5 hours", "2 hours"])
         durations = {"30 mins": 30, "45 mins": 45, "1 hour": 60, "1.5 hours": 90, "2 hours": 120}
         duration = durations[duration_text]
-        note = st.text_area("✏️ Special Request (optional)")
+        note = st.text_area("✏️ Additional Notes (optional)")
 
         store_open, store_close = get_store_hours()
         slot_time = melbourne_tz.localize(datetime.combine(date, store_open))
@@ -133,13 +132,12 @@ def booking_page():
             time_map[display] = slot_time
             slot_time += timedelta(minutes=15)
 
-        display_times = ["-- Please select a time --"] + available_times
-        selected_time_str = st.selectbox("🕒 Available Time", options=display_times)
+        selected_time_str = st.selectbox("🕒 Available Time", options=["-- Please select a time --"] + available_times)
 
         confirm = st.form_submit_button("✅ Confirm Booking")
 
         if confirm:
-            if selected_time_str == "-- Please select a time --":
+            if not selected_time_str or selected_time_str == "-- Please select a time --":
                 st.error("❗ Please select a time before confirming.")
                 return
 
@@ -165,15 +163,15 @@ def booking_page():
                 "start_time": selected_dt.strftime("%I:%M %p"),
                 "end_time": end_dt.strftime("%I:%M %p"),
                 "customer_name": name,
-                "Therapist": therapist,
+                "Therapist": provider,
                 "phone": phone,
-                "Type": massage_type,
+                "Type": service_type,
                 "add_on": addon_names,
                 "Add-on Price": addon_price
             }).execute()
 
-            send_confirmation_email(name, phone, email, massage_type, therapist, date, selected_dt, end_dt, note, addon_names)
-            st.success(f"🎉 Booking confirmed on {date.strftime('%d/%m/%Y')} at {selected_time_str} with {therapist}")
+            send_confirmation_email(name, phone, email, service_type, provider, date, selected_dt, end_dt, note, addon_names)
+            st.success(f"🎉 Booking confirmed on {date.strftime('%d/%m/%Y')} at {selected_time_str} with {provider}")
 
 # ------------------ Run ------------------
 booking_page()
