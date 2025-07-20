@@ -119,10 +119,14 @@ def play_notification():
     st.audio(audio_url, format="audio/mp3")
 
 # ---------- DETECT NEW BOOKING BY ROW (WITH store_id) ----------
-def play_notification_on_new_booking():
-    store_id = st.session_state.get("store_id")
-    if not store_id:
-        return
+def play_notification():
+    audio_url = "https://cdn.jsdelivr.net/gh/Melbooking/sound@main/new_booking.mp3"
+    st.components.v1.html(f"""
+    <script>
+        var audio = new Audio("{audio_url}");
+        audio.play();
+    </script>
+    """, height=0)
 
     # โหลด bookings เฉพาะร้าน
     response = supabase.table("bookings").select("id").eq("store_id", store_id).execute()
