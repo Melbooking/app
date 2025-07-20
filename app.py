@@ -10,7 +10,7 @@ import uuid
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 EMAIL = st.secrets["EMAIL_SENDER"]
-APP_PASSWORD = st.secrets["EMAIL_APP_PASSWORD"]
+EMAIL_APP_PASSWORD = st.secrets["EMAIL_APP_PASSWORD"]
 supabase = create_client(url, key)
 melbourne_tz = pytz.timezone("Australia/Melbourne")
 
