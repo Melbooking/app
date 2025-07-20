@@ -6,3 +6,4 @@ pandas
 pygame
 yagmail
 bcrypt
+streamlit-autorefresh
