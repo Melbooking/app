@@ -42,8 +42,11 @@ def dashboard():
     stores = supabase.table("stores").select("*").execute().data
     st.subheader(f"🏪 All Stores ({len(stores)})")
     for s in stores:
-        store_url = f"?store={s.get('store_slug', '')}"
-        st.markdown(f"- **[{s['store_name']}]({store_url})** | {s.get('phone', '')} | ID: `{s['id']}`")
+        slug = s.get("store_slug", "")
+        store_url = f"https://melbooking.streamlit.app/?store_name={slug}"
+        st.markdown(f"- **{s['store_name']}**  
+        🔗 [เปิดลิงก์ร้าน]({store_url})  
+        🆔 ID: `{s['id']}`", unsafe_allow_html=True)
 
     # ---- Booking ทุกร้าน
     bookings = supabase.table("bookings").select("*").execute().data
@@ -59,14 +62,12 @@ def dashboard():
     # ---- เพิ่มร้านใหม่
     st.subheader("➕ Add New Store")
     name = st.text_input("Store name")
-    phone = st.text_input("Phone")
     if st.button("Create Store"):
         slug = slugify(name)
         new_store = {
             "id": str(uuid.uuid4()),
             "store_name": name,
             "store_slug": slug,
-            "phone": phone,
             "status": "active",
             "created_at": datetime.now().isoformat()
         }
