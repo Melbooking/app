@@ -10,8 +10,8 @@ import hashlib  # ✅ สำหรับสร้าง id หรือ key แ�
 import random
 import bcrypt
 # ------------------ Supabase Config ------------------
-url = "https://tkdjgsubwywsbdgpkdfy.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrZGpnc3Vid3l3c2JkZ3BrZGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE2MzE2NzUsImV4cCI6MjA2NzIwNzY3NX0.RLfnGGd7caxLiQRKdQY9GF9lq3m4LkPU5NST3QZV3F0"
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 
 

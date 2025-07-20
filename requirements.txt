@@ -6,4 +6,3 @@ pandas
 pygame
 yagmail
 bcrypt
-python-dotenv

@@ -4,15 +4,21 @@ import pandas as pd
 import uuid
 from datetime import datetime
 from bcrypt import hashpw, gensalt
+import re
 
 # ====== Connect to Supabase ======
-url = "https://tkdjgsubwywsbdgpkdfy.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrZGpnc3Vid3l3c2JkZ3BrZGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE2MzE2NzUsImV4cCI6MjA2NzIwNzY3NX0.RLfnGGd7caxLiQRKdQY9GF9lq3m4LkPU5NST3QZV3F0"
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
 # ====== Super Admin Credentials ======
-SUPER_ADMIN_EMAIL = "ausnatee@gmail.com"
-SUPER_ADMIN_PASSWORD = "melbooking123"
+SUPER_ADMIN_EMAIL = st.secrets["SUPER_ADMIN_EMAIL"]
+SUPER_ADMIN_PASSWORD = st.secrets["SUPER_ADMIN_PASSWORD"]
+
+# ====== Helper ======
+def slugify(name):
+    slug = re.sub(r'[^a-zA-Z0-9]+', '-', name.lower()).strip('-')
+    return slug
 
 # ====== Login ======
 def login():
@@ -36,7 +42,8 @@ def dashboard():
     stores = supabase.table("stores").select("*").execute().data
     st.subheader(f"🏪 All Stores ({len(stores)})")
     for s in stores:
-        st.markdown(f"- **{s['name']}** | {s.get('phone', '')} | ID: `{s['id']}`")
+        store_url = f"?store={s.get('store_slug', '')}"
+        st.markdown(f"- **[{s['store_name']}]({store_url})** | {s.get('phone', '')} | ID: `{s['id']}`")
 
     # ---- Booking ทุกร้าน
     bookings = supabase.table("bookings").select("*").execute().data
@@ -54,9 +61,11 @@ def dashboard():
     name = st.text_input("Store name")
     phone = st.text_input("Phone")
     if st.button("Create Store"):
+        slug = slugify(name)
         new_store = {
             "id": str(uuid.uuid4()),
-            "name": name,
+            "store_name": name,
+            "store_slug": slug,
             "phone": phone,
             "status": "active",
             "created_at": datetime.now().isoformat()
@@ -81,7 +90,7 @@ def dashboard():
     st.subheader("👤 Create New Admin Account")
     new_admin_email = st.text_input("New Admin Email")
     new_admin_password = st.text_input("New Admin Password")
-    store_options = {s["name"]: s["id"] for s in stores}
+    store_options = {s["store_name"]: s["id"] for s in stores}
     selected_store = st.selectbox("Assign to Store", list(store_options.keys()))
     if st.button("Create Admin Account"):
         hashed_pw = hashpw(new_admin_password.encode(), gensalt()).decode()

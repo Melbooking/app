@@ -13,4 +13,4 @@ __pycache__/
 .vscode/
 
 # macOS system file
-.DS_Store
+.DS_Store".env" 

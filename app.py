@@ -3,7 +3,6 @@ from supabase import create_client
 from datetime import datetime, timedelta, time
 import pytz
 import yagmail
-from dotenv import load_dotenv
 import os
 
 # ------------------ Load Secrets ------------------
@@ -36,7 +35,7 @@ store_name = query_params.get("store", [None])[0]
 if store_id and is_valid_uuid(store_id):
     store_data = supabase.table("stores").select("id").eq("id", store_id).limit(1).execute()
 elif store_name:
-    store_data = supabase.table("stores").select("id").ilike("name", store_name).limit(1).execute()
+    store_data = supabase.table("stores").select("id").ilike("store_name", store_name).limit(1).execute()
 else:
     st.error("❌ กรุณาเข้าผ่านลิงก์ที่มีชื่อร้าน หรือ store_id")
     st.stop()
@@ -88,7 +87,7 @@ def booking_page():
     therapists = [t["Name"] for t in supabase.table("therapists").select("*").eq("store_id", store_id).execute().data]
     massage_types_data = supabase.table("massage_types").select("*").eq("store_id", store_id).execute().data
     main_massage_types = [m for m in massage_types_data if not m.get("is_addon", False)]
-    addon_types = [a for a in massage_types_data if m.get("is_addon", False)]
+    addon_types = [a for a in massage_types_data if a.get("is_addon", False)]
 
     today = datetime.now(melbourne_tz).date()
 
